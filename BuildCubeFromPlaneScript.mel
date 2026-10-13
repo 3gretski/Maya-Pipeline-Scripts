@@ -1,0 +1,80 @@
+global proc buildCubeFromPlane() {
+    string $selection[] = `ls -sl -tr`;
+    if (size($selection) == 0) {
+        warning "Please select a plane to build the cube.";
+        return;
+    }
+
+    string $plane = $selection[0];
+
+    // Reset pivot, delete history, freeze transforms
+    CenterPivot $plane;
+    DeleteHistory $plane;
+    makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 1 $plane;
+
+    // Mirror across Z
+    polyMirrorFace -cutMesh 0 -axis 2 -axisDirection 1 -mergeMode 1 -mergeThresholdType 0 -mergeThreshold 0.001 -mirrorAxis 2 -mirrorPosition 0 -smoothingAngle 30 -flipUVs 0 -ch 1 $plane;
+
+    // Grab mirrored obj
+    string $halfCube[] = `ls -sl -tr`;
+    if (size($halfCube) == 0) {
+        warning "Mirror failed: no mirrored object found.";
+        return;
+    }
+
+    // check transform
+    string $halfCubeTrans[] = `listRelatives -p $halfCube[0]`;
+    if (size($halfCubeTrans) > 0) $halfCube[0] = $halfCubeTrans[0];
+
+    // Sides 1 and 2
+    string $dup1[] = `duplicate -rr $halfCube`;
+    string $dup1Trans[] = `listRelatives -p $dup1[0]`;
+    if (size($dup1Trans) > 0) $dup1[0] = $dup1Trans[0];
+    rotate -r -ws 90 0 0 $dup1[0];
+    move -os 0 0 0 $dup1[0];
+    CenterPivot $dup1[0];
+    makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 1 $dup1[0];
+
+    // Sides 3 and 4
+    string $dup2[] = `duplicate -rr $halfCube`;
+    string $dup2Trans[] = `listRelatives -p $dup2[0]`;
+    if (size($dup2Trans) > 0) $dup2[0] = $dup2Trans[0];
+    rotate -r -ws 0 0 90 $dup2[0];
+    move -os 0 0 0 $dup2[0];
+    CenterPivot $dup2[0];
+    makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 1 $dup2[0];
+
+    // Sides 5 and 6
+    string $dup3[] = `duplicate -rr $halfCube`;
+    string $dup3Trans[] = `listRelatives -p $dup3[0]`;
+    if (size($dup3Trans) > 0) $dup3[0] = $dup3Trans[0];
+    rotate -r -ws 0 90 0 $dup3[0];
+    move -os 0 0 0 $dup3[0];
+    CenterPivot $dup3[0];
+    makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 1 $dup3[0];
+
+    // Combine sides
+    string $allPieces[] = {$halfCube[0], $dup1[0], $dup2[0], $dup3[0]};
+    string $uniteResult[] = `polyUnite -ch 1 -mergeUVSets 1 -centerPivot -name ($plane + "_cube") $allPieces`;
+
+    // Merge vertices
+    select -r ($uniteResult[0] + ".vtx[*]");
+    polyMergeVertex -d 0.003 -am 1 -ch 1;
+
+    select -r $uniteResult[0];
+    print ("Cube created: " + $uniteResult[0] + "\n");
+}
+
+global proc buildCubeUI() {
+    if (`window -exists cubeWin`) deleteUI cubeWin;
+
+    window -title "Plane to Cube Tool" -w 220 -h 120 cubeWin;
+    columnLayout -adjustableColumn true;
+    text -label "Build a cube from selected plane" -fn "boldLabelFont";
+    separator -h 10 -style "in";
+    button -label "Build Cube" -h 40 -command "buildCubeFromPlane()";
+
+    showWindow cubeWin;
+}
+
+buildCubeUI();
